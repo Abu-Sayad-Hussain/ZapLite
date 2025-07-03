@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: zaplite-postgres
+    environment:
+      POSTGRES_DB: zaplite
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: zaplite-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  app:
+    build: .
+    container_name: zaplite-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://postgres:password@postgres:5432/zaplite
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SLACK_WEBHOOK_URL: https://hooks.slack.com/services/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
+      GMAIL_USER: abusayadhussain@gmail.com
+      GMAIL_PASS: ofgearswar32
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./docker-entrypoint.sh:/app/docker-entrypoint.sh
+    entrypoint: ["/bin/sh", "/app/docker-entrypoint.sh"]
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
